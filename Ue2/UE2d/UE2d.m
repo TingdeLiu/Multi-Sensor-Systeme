@@ -1,0 +1,119 @@
+%Zeitsynchronisation zwischen Kamera und IMU
+% Der letzte Schritt vor der Systemkalibrierung ist die Zeitsynchronisation zwischen den Sensoren:
+% Die Abtastfrequenz der IMU beträgt 100 Hz, während die Kamera mit 20 f/s aufnimmt. Dies bedeutet, dass eine Kamera-Pose pro 5 IMU-Daten erfasst wird.
+% Somit müssen für alle zwei Kameraparameter drei Parameter mithilfe der Interpolation geschätzt werden.
+% 
+% 
+% Hier ein Beispielbild zur Verdeutlichung der Problematik mit verschiedenen Abtastraten. In dieser Übung müssen für die Zeitpunkte in der IMU-Messwerte vorliegen die Kamerapositionen, Kamerarotationswinkel und Kameratranslationsvektoren geschätzt werden.
+% 
+% Die folgenden Schritte sind dabei zu bearbeiten:
+% Schritt 1: 
+% Grad des Polynoms: für ein kompatibles Ergebnis mit der Referenzlösung soll der Grad des Polynoms auf 2 gesetzt werden.
+% Schritt 2:
+% Interpolationsintervall: Dieser Wert bestimmt, wie viele konzessive Parameter für die Polynom-Anpassung verwendet werden sollen. Dieser Wert wurde auf 4 gesetzt.  
+% Schritt 3:
+% Interpolation der:
+% Kamera-Pose
+% globalen Kamerarotationswinkel
+% globalen Kameratranslationsvektoren
+% Die IMU- und Kameradaten werden in folgende .mat-Dateien gespeichert:      
+% imu_data.mat
+% image_data.mat
+% Diese sind dieselben Daten, die in der ersten und dritten Problemstellung vorbereitet wurden.
+% 
+% 
+% Hinweis: 
+% In dieser Übung haben Sie zwei Möglichkeiten:
+% 1. Es gibt einen Abschnitt im Code, den Sie so lassen können, wie er ist, und versuchen, ihn zu verstehen und die Probleme zu lösen (empfohlen und der einfachste Weg)
+% 2. Ignorieren Sie die Vorschläge und schreiben Sie die Funktion, wie Sie wollen. Am Ende sollte die Größe der neuen Kamerapositionskomponenten gleich der Größe der IMU-Daten sein.
+% 
+% Zur Lösung des Problems benötigen Sie die beiden folgenden MATLAB-Funktionen:
+% 
+% polyfit:   Schätzung der Polynomkoeffizienten
+% ployval: Interpolation der Kameradaten auf der Basis der interpolierten Zeit und der geschätzten Polynomkoeffizienten
+
+
+%% Here you should import d the camera and IMU data
+load('imu_data.mat')
+load('image_data.mat')
+%% Order of the polynomial and polynomial approximation interval
+polynom_order=2;
+approximation_interval=4;
+
+%% synchronization using camera data interpolation
+image_data_new=polynom_interpolation(image_data,imu_data,polynom_order,approximation_interval); %Aufrufen der unten beschriebenen Funktion mit den passenden Daten
+
+
+%Umspeicherung der Daten:
+    image_data_new_came_pose=image_data_new.came_pose;
+    image_data_new_rvec=image_data_new.rvec;
+    image_data_new_rostime=image_data_new.rostime;
+    image_data_new_tvec= image_data_new.tvec;
+
+%% Funtion
+function image_data_new=polynom_interpolation(image_data,imu_data,order,interval)
+    image_data_new=image_data;
+    image_data.rostime=image_data.rostime-image_data.rostime(1);   
+    imu_data.rostime=imu_data.rostime-imu_data.rostime(1);
+    %***********this part is a suggestion and you can change it if you like*****************%
+    t=imu_data.rostime;
+    tm=image_data.rostime;
+    
+    
+    cam_new=[];
+    rvec_new=[];
+    tvec_new=[];
+
+    start=1;
+    j=1;
+    
+    for i=start:interval:length(tm)-interval-1
+        interpolated_time=[];camera_pose=[];rvec=[];tvec=[];
+        while((i==start)&&(t(j)<tm(i)))
+            j=j+1;
+        end
+
+        while((t(j)>=tm(i))&&(t(j)<tm(i+interval)))
+            interpolated_time=[interpolated_time;t(j)];
+            j=j+1;
+            if j== length(t)
+              break
+            end
+        end
+    %**********************************************************************************************%
+        for k=1:3     
+            %% here you sould estimate the Polynomial coefficients for different parameters 
+            % (Camera pose, Rotation and Translation) in each interpolatd time interval. 
+            % Pleae note that each transformation paramters has 3 components and the the polynomial for each
+            % component is different.
+            
+            %(polyfit)
+            camera_pose_xyz = image_data.came_pose(:,k);
+            rvec_xyz = image_data.rvec(:,k);
+            tvec_xyz = image_data.tvec(:,k);
+            camera_pose_Coeff = polyfit(tm(i:i+interval),camera_pose_xyz(i:i+interval),order);
+            rvec_Coeff = polyfit(tm(i:i+interval),rvec_xyz(i:i+interval),order);
+            tvec_Coeff = polyfit(tm(i:i+interval),tvec_xyz(i:i+interval),order);
+            
+            
+            %% Here you should interpolate the paramters based on estimated coefficients and interpolated time.
+            %(polyval)
+             camera_pose(:,k) = polyval(camera_pose_Coeff,interpolated_time);
+             rvec(:,k) = polyval(rvec_Coeff,interpolated_time);
+             tvec(:,k) = polyval(tvec_Coeff,interpolated_time);
+            
+        end
+        cam_new=[cam_new;[interpolated_time camera_pose]];
+        rvec_new=[rvec_new;[interpolated_time rvec]];
+        tvec_new=[tvec_new;[interpolated_time tvec]];
+        
+        if j== length(t)
+            break
+        end
+    end
+
+    image_data_new.came_pose=cam_new(:,2:4);
+    image_data_new.rvec=rvec_new(:,2:4);
+    image_data_new.rostime=cam_new(:,1)+imu_data.startTime;
+    image_data_new.tvec=tvec_new(:,2:4);
+end
