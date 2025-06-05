@@ -102,10 +102,3 @@ This is a course I took at Leibniz University and the code is an exercise for my
 
 <p align="center"><i>“Reliable sensor fusion starts with precise calibration.”</i></p>
 """
-
-# Save to file
-output_path = "/mnt/data/README_MSS_LabSeries.md"
-with open(output_path, "w", encoding="utf-8") as f:
-    f.write(readme_content.strip())
-
-output_path
