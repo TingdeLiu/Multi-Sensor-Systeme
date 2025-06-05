@@ -98,7 +98,4 @@ This is a course I took at Leibniz University and the code is an exercise for my
 - Liu, Jiayu (2021). *Extrinsische Kalibrierung einer IMU für ein Multi-Sensor System*, Masterarbeit, LUH.
 - Ernst, D. (2021). *Quality model for uncertainty judgement of kinematic TLS-MSS*, Masterarbeit, LUH.
 
----
 
-<p align="center"><i>“Reliable sensor fusion starts with precise calibration.”</i></p>
-"""
